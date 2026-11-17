@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+
 from dataclasses import asdict, dataclass, field
 
 
@@ -27,6 +28,14 @@ class FacultyRecord:
     website: str | None = None       # personal / lab site
     research_areas: list[str] = field(default_factory=list)
     research_interests: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)     # printed remarks, e.g. "not accepting new graduate students"
+
+    @property
+    def accepting_students(self) -> bool | None:
+        """False only when the page says so; None means the page doesn't say (not 'yes')."""
+        if any(re.search(r"\bnot\s+(currently\s+)?accepting\b", n, re.IGNORECASE) for n in self.notes):
+            return False
+        return None
 
     @property
     def id(self) -> str:
@@ -35,4 +44,5 @@ class FacultyRecord:
     def to_dict(self) -> dict:
         d = asdict(self)
         d["id"] = self.id
+        d["accepting_students"] = self.accepting_students
         return d

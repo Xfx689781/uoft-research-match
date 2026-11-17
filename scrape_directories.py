@@ -12,11 +12,37 @@ import sys
 from collections import Counter
 
 from researchmatch import db
-from researchmatch.config import load_settings
+from researchmatch.config import PROJECT_ROOT, load_settings
 from researchmatch.http import BlockedError, FetchError, PoliteFetcher
 from researchmatch.parsers import get_parser
+from researchmatch.parsers.artsci_drupal import saved_from_url
 
 MAX_PAGES_PER_DEPT = 500
+MANUAL_ROOT = PROJECT_ROOT / "data" / "manual_html"
+
+
+def scrape_manual(dept, manual_root):
+    """Parse pages a person saved from a browser (for sites that block automated access)."""
+    parser = get_parser(dept.parser)
+    folder = manual_root / dept.id
+    files = sorted(folder.glob("*.htm*")) if folder.exists() else []
+    if not files:
+        raise FetchError(f"no saved pages in {folder}")
+    records, skipped, seen, expected = [], [], set(), None
+    for f in files:
+        html = f.read_text(encoding="utf-8", errors="replace")
+        url = saved_from_url(html) or dept.directory_url
+        res = parser.parse(html, url, dept)
+        expected = res.expected_total or expected
+        skipped.extend(f"{f.name}: {s}" for s in res.skipped)
+        for r in res.records:
+            if r.id not in seen:
+                seen.add(r.id)
+                records.append(r)
+    if expected and len(records) + sum("not faculty" in s for s in skipped) < expected:
+        skipped.insert(0, f"INCOMPLETE: the site lists {expected} profiles but the saved pages contain "
+                          f"{len(records)}. Save the page with items_per_page=All (see README).")
+    return records, skipped, 0, len(files)
 
 
 def scrape_department(dept, fetcher, refresh: bool):
@@ -44,7 +70,8 @@ def print_summary(dept, records, skipped, fetched, cached):
     with_email = sum(r.email is not None for r in records)
     with_areas = sum(bool(r.research_areas) for r in records)
     print(f"\n=== {dept.name} [{dept.id}] ===")
-    print(f"pages: {fetched} downloaded, {cached} from cache")
+    src = "saved manually" if dept.extra.get("source") == "manual" else "from cache"
+    print(f"pages: {fetched} downloaded, {cached} {src}")
     print(f"faculty kept: {len(records)} | with email: {with_email} | with research areas: {with_areas}")
     by_type = Counter(r.appointment_type for r in records)
     email_by_type = Counter(r.appointment_type for r in records if r.email)
@@ -80,7 +107,10 @@ def main(argv=None) -> int:
     failures = 0
     for dept in depts:
         try:
-            records, skipped, fetched, cached = scrape_department(dept, fetcher, args.refresh)
+            if dept.extra.get("source") == "manual":
+                records, skipped, fetched, cached = scrape_manual(dept, MANUAL_ROOT)
+            else:
+                records, skipped, fetched, cached = scrape_department(dept, fetcher, args.refresh)
         except NotImplementedError as e:
             note = f" (site access: {dept.access})" if dept.access != "ok" else ""
             print(f"\n=== {dept.name} [{dept.id}] === SKIPPED: {e}{note}")

@@ -7,6 +7,23 @@ defaults:
   min_request_interval_s: 1.0
   cache_dir: data/raw_html
 
+embedding:
+  model: BAAI/bge-small-en-v1.5     # any sentence-transformers model; re-run build_embeddings.py after changing
+  query_prefix: "Represent this sentence for searching relevant passages: "   # bge models want this on queries
+  batch_size: 64
+
+ranking:
+  profile_weight: 0.5               # score = w * sim(query, profile) + (1 - w) * mean sim(query, top papers)
+  top_papers: 3
+  profile_mix:                      # how a professor's profile vector is assembled
+    department_page: 0.25           #   research areas/interests from the department page
+    topics: 0.25                    #   OpenAlex topics
+    papers: 0.50                    #   recent papers, recency-weighted
+  recency_decay: 0.8                # paper weight = decay ** (years since publication)
+  paper_recency_penalty: 0.10       # top-paper sims shrink by up to 10% for the oldest papers in the window
+  emeritus_multiplier: 0.90         # emeriti stay searchable but rank slightly lower
+  abstract_chars: 1500
+
 openalex:
   institution_ror: 03dbr7087        # University of Toronto -> resolved to an OpenAlex institution id at runtime
   works_since_years: 6
@@ -40,7 +57,8 @@ departments:
   - id: math
     name: Department of Mathematics
     campus: St. George
-    directory_url: https://www.mathematics.utoronto.ca/people/directories/all-faculty
+    directory_url: https://www.mathematics.utoronto.ca/people/directories/all-faculty?sort_by=ppl_last_name_value&items_per_page=All
+    source: manual                        # pages saved from a browser into data/manual_html/math/
     page_type: drupal_paginated_with_profiles   # Arts & Science Drupal template (unverified: page is behind a bot check)
     parser: artsci_drupal
     access: blocked_bot_challenge         # JS "Verifying you are human" interstitial; robots.txt returns 403
@@ -51,7 +69,8 @@ departments:
   - id: stats
     name: Department of Statistical Sciences
     campus: St. George
-    directory_url: https://www.statistics.utoronto.ca/people/directories/all-faculty
+    directory_url: https://www.statistics.utoronto.ca/people/directories/all-faculty?sort_by=ppl_last_name_value&items_per_page=All
+    source: manual                        # pages saved from a browser into data/manual_html/stats/
     page_type: drupal_paginated_with_profiles   # ?page=N pagination plus /all-faculty/<slug> profile pages (per search index)
     parser: artsci_drupal
     access: blocked_bot_challenge         # same interstitial as Math

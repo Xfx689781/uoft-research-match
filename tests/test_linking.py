@@ -105,6 +105,16 @@ def test_fragment_outscoring_main_profile():         # David Fleet: 4-work fragm
     assert [m.id for m in d.merged] == ["https://openalex.org/A5123657655"]
 
 
+def test_two_large_records_same_topics_are_merged():  # Richard Zemel / "Rich Zemel" pattern
+    topics = [("Domain Adaptation", "Computer Science", 30), ("Fairness in ML", "Computer Science", 20),
+              ("Neural Networks", "Computer Science", 10)]
+    a = author("A1", "Rich Zemel", 300, topics=topics)
+    b = author("A2", "Richard S. Zemel", 120, topics=topics[:2] + [("Generative Models", "Computer Science", 5)])
+    d = run(fac("Richard Zemel", ["machine learning"]), [a, b])
+    assert d.status == "accepted"
+    assert set(d.author_ids) == {"https://openalex.org/A1", "https://openalex.org/A2"}
+
+
 def test_common_name_is_ambiguous():                 # Bo Wang: two substantial UofT records
     a = author("A5074665648", "Bo Wang", 266, topics=[("Cancer Immunotherapy", "Medicine", 10)])
     b = author("A5100408160", "Bo Wang", 291, topics=[("Single-cell transcriptomics", "Biochemistry", 10)])
@@ -129,6 +139,12 @@ def test_wrong_person_unmatched():
     d = run(fac("Anna Goldenberg"), [author("A1", "Boris Petrov", 50, last_known=(OTHER,),
                                             topics=[("Soil Science", "Agricultural and Biological Sciences", 5)])])
     assert d.status == "unmatched" and d.best is None
+
+
+def test_top_candidate_with_weak_name_does_not_crash():
+    # regression: the main-profile search excluded the top candidate itself when its name score < 0.9
+    d = run(fac("Faith Ellen"), [author("A1", "F. Ellen", 120)])
+    assert d.status in ("accepted", "review") and d.best.id.endswith("A1")
 
 
 def test_no_candidates():

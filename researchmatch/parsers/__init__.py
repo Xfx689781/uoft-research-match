@@ -19,6 +19,7 @@ class ParseResult:
     records: list[FacultyRecord] = field(default_factory=list)
     next_urls: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)   # human-readable reasons, for the summary
+    expected_total: int | None = None                  # entry count the page itself claims, if it says
 
 
 class DirectoryParser(Protocol):
@@ -27,11 +28,12 @@ class DirectoryParser(Protocol):
 
 
 def get_parser(name: str) -> DirectoryParser:
+    from .artsci_drupal import ArtsciDrupalParser
     from .cs_squarespace import CSSquarespaceParser
 
     registry: dict[str, DirectoryParser] = {
         "cs_squarespace": CSSquarespaceParser(),
-        # "artsci_drupal": Math + Stats; written once we have real HTML to build it against.
+        "artsci_drupal": ArtsciDrupalParser(),     # Math + Stats (pages saved manually)
     }
     if name not in registry:
         raise NotImplementedError(f"No parser registered for {name!r}")

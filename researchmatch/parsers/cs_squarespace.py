@@ -62,10 +62,14 @@ def _name(cell: Tag) -> str:
     return _clean(a.get_text()) if a and _clean(a.get_text()) else _lines(cell)[0]
 
 
-def _research(cell: Tag) -> tuple[list[str], list[str]]:
-    # Drop italic notes like "Professor X is not accepting any new graduate students."
+def _research(cell: Tag) -> tuple[list[str], list[str], list[str]]:
+    # Italic notes like "Professor X is not accepting any new graduate students." are kept
+    # separately (shown to students), not mixed into the research areas.
+    notes = []
     for p in cell.find_all("p"):
         if p.find(["i", "em"]):
+            if _clean(p.get_text(" ")):
+                notes.append(_clean(p.get_text(" ")))
             p.decompose()
     text = _clean(cell.get_text(" "))
     areas: list[str] = []
@@ -75,7 +79,7 @@ def _research(cell: Tag) -> tuple[list[str], list[str]]:
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
         chunk = _split_list(text[m.end():end])
         (areas if m.group(1).lower() == "areas" else interests).extend(chunk)
-    return areas, interests
+    return areas, interests, notes
 
 
 class CSSquarespaceParser:
@@ -121,6 +125,7 @@ class CSSquarespaceParser:
         home_unit = None
         areas: list[str] = []
         interests: list[str] = []
+        notes: list[str] = []
 
         if len(cells) == 5:                                    # layout T
             name, title = _name(cells[0]), _clean(cells[1].get_text(" "))
@@ -135,7 +140,7 @@ class CSSquarespaceParser:
                     return None
                 name, title = _name(cells[0]), second[0]
                 home_unit = " ".join(second[1:]) or None
-            areas, interests = _research(cells[2])
+            areas, interests, notes = _research(cells[2])
         else:
             return None
 
@@ -157,4 +162,5 @@ class CSSquarespaceParser:
             website=_website(cells[0]),
             research_areas=areas,
             research_interests=interests,
+            notes=notes,
         )

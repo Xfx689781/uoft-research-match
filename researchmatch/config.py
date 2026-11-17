@@ -46,6 +46,8 @@ class Settings:
     contact_email: str | None
     departments: list[Department]
     openalex: OpenAlexSettings
+    embedding: dict[str, Any] = field(default_factory=dict)
+    ranking: dict[str, Any] = field(default_factory=dict)
 
     def department(self, dept_id: str) -> Department:
         for d in self.departments:
@@ -88,6 +90,8 @@ def load_settings(path: Path | None = None) -> Settings:
     )
 
     return Settings(
+        embedding=raw.get("embedding", {}),
+        ranking=raw.get("ranking", {}),
         openalex=openalex,
         user_agent=ua,
         min_request_interval_s=interval,

@@ -170,10 +170,28 @@ def score_candidates(faculty, candidates: list[dict], institution_id: str, curre
     return sorted(scored, key=lambda s: (s.confidence, s.author.get("works_count", 0)), reverse=True)
 
 
+def _topic_names(s: ScoredCandidate, k: int = 10) -> set[str]:
+    return {t["display_name"] for t in (s.author.get("topics") or [])[:k]}
+
+
+def topic_jaccard(a: ScoredCandidate, b: ScoredCandidate) -> float:
+    ta, tb = _topic_names(a), _topic_names(b)
+    return len(ta & tb) / len(ta | tb) if ta and tb else 0.0
+
+
+SPLIT_TOPIC_JACCARD = 0.4
+
+
 def _is_split_fragment(main: ScoredCandidate, other: ScoredCandidate) -> bool:
+    """Same person under another OpenAlex id: either a tiny same-name stub, or a substantial record
+    with the same name, a current-ish UofT affiliation, and largely the same research topics."""
     mw = main.author.get("works_count", 0)
     ow = other.author.get("works_count", 0)
-    return other.name >= 0.9 and other.affiliation > 0 and ow <= max(5, 0.1 * mw)
+    if other.name >= 0.9 and other.affiliation > 0 and ow <= max(5, 0.1 * mw):
+        return True
+    return (other.name >= 0.9 and main.name >= 0.9
+            and other.affiliation >= 0.8 and main.affiliation >= 0.8
+            and topic_jaccard(main, other) >= SPLIT_TOPIC_JACCARD)
 
 
 def decide(scored: list[ScoredCandidate]) -> LinkDecision:
@@ -186,8 +204,8 @@ def decide(scored: list[ScoredCandidate]) -> LinkDecision:
 
     # A tiny fragment profile often edges out the person's main profile on topic score. Within the
     # tie band, the main profile is the one with the most works; fragments are folded into it.
-    contenders = [s for s in scored if top.confidence - s.confidence < TIE_MARGIN
-                  and s.affiliation >= top.affiliation and s.name >= 0.9]
+    contenders = [top] + [s for s in scored[1:] if top.confidence - s.confidence < TIE_MARGIN
+                          and s.affiliation >= top.affiliation and s.name >= 0.9]
     best = max(contenders, key=lambda s: s.author.get("works_count", 0))
     merged = [s for s in scored if s is not best and _is_split_fragment(best, s)]
     rivals = sorted((s for s in scored if s is not best and s not in merged and s.name >= 0.8),

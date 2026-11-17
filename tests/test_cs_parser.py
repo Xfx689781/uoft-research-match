@@ -75,6 +75,9 @@ def test_emeritus_flag_and_note_stripped(parsed):
     assert r.is_emeritus and r.rank == "emeritus"
     assert r.research_areas == ["human-computer interaction", "health & assistive technologies"]
     assert not any("accepting" in a for a in r.research_areas)
+    assert r.notes == ["Professor Baecker is not accepting any new graduate students."]
+    assert r.accepting_students is False
+    assert by_name(parsed, "Ishtiaque Ahmed").accepting_students is None   # page is silent -> unknown
 
 
 def test_emeritus_outside_emeriti_section(parsed):

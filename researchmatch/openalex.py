@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from pathlib import Path
 from urllib.parse import urlencode
@@ -53,13 +54,19 @@ class OpenAlexClient:
         wait = self.min_interval_s - (time.monotonic() - self._last)
         if wait > 0:
             time.sleep(wait)
-        for attempt in range(3):
+        waited = 0.0
+        for attempt in range(8):
             self._last = time.monotonic()
             r = self.session.get(f"{BASE}{path}", params=send, timeout=60)
             if r.status_code == 429:
-                if "budget" in r.text.lower():           # daily budget gone: retrying won't help
+                # Pacing limits say "retry in N second(s)"; an exhausted daily budget does not.
+                m = re.search(r"retry in (\d+)\s*second", r.text, re.IGNORECASE)
+                if not m or waited > 600:
                     raise BudgetExhausted(f"OpenAlex 429: {r.text[:200]}")
-                time.sleep(2 ** attempt)                 # per-second rate limit: back off
+                delay = max(float(m.group(1)), 2.0 ** min(attempt, 6))
+                print(f"    (OpenAlex pacing limit; waiting {delay:.0f}s)", flush=True)
+                time.sleep(delay)
+                waited += delay
                 continue
             if r.status_code >= 500:
                 time.sleep(2 ** attempt)

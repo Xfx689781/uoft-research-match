@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS faculty (
     website            TEXT,
     research_areas     TEXT NOT NULL DEFAULT '[]', -- JSON array
     research_interests TEXT NOT NULL DEFAULT '[]', -- JSON array
+    notes              TEXT NOT NULL DEFAULT '[]', -- JSON array of printed remarks
+    accepting_students INTEGER,                    -- 0 = page says not accepting; NULL = page silent
     source_url         TEXT NOT NULL,
     scraped_at         TEXT NOT NULL
 );
@@ -83,7 +85,23 @@ def connect(path: Path) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA)
+    _migrate(conn)
     return conn
+
+
+# Columns added after the first release: (table, column, DDL). Applied to older databases on connect.
+_ADDED_COLUMNS = [
+    ("faculty", "notes", "TEXT NOT NULL DEFAULT '[]'"),
+    ("faculty", "accepting_students", "INTEGER"),
+]
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    for table, col, ddl in _ADDED_COLUMNS:
+        have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        if col not in have:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
+    conn.commit()
 
 
 def replace_department_faculty(conn: sqlite3.Connection, dept, records: list[FacultyRecord]) -> None:
@@ -106,8 +124,9 @@ def replace_department_faculty(conn: sqlite3.Connection, dept, records: list[Fac
         )
         conn.executemany(
             "INSERT INTO faculty (id, department_id, name, title, rank, appointment_type, is_emeritus, "
-            "home_unit, email, profile_url, website, research_areas, research_interests, source_url, "
-            "scraped_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET "
+            "home_unit, email, profile_url, website, research_areas, research_interests, notes, "
+            "accepting_students, source_url, scraped_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
+            "ON CONFLICT(id) DO UPDATE SET notes=excluded.notes, accepting_students=excluded.accepting_students, "
             "department_id=excluded.department_id, name=excluded.name, title=excluded.title, "
             "rank=excluded.rank, appointment_type=excluded.appointment_type, "
             "is_emeritus=excluded.is_emeritus, home_unit=excluded.home_unit, email=excluded.email, "
@@ -117,6 +136,7 @@ def replace_department_faculty(conn: sqlite3.Connection, dept, records: list[Fac
             [(
                 r.id, r.department_id, r.name, r.title, r.rank, r.appointment_type, int(r.is_emeritus),
                 r.home_unit, r.email, r.profile_url, r.website, json.dumps(r.research_areas),
-                json.dumps(r.research_interests), r.source_url, now,
+                json.dumps(r.research_interests), json.dumps(r.notes),
+                None if r.accepting_students is None else int(r.accepting_students), r.source_url, now,
             ) for r in records],
         )
