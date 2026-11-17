@@ -38,14 +38,12 @@ class SentenceTransformerEmbedder:
             texts = [self.query_prefix + t for t in texts]
         import torch
 
-        out = []
-        with torch.inference_mode():
-            for i in range(0, len(texts), 512):            # chunk so progress is visible and memory bounded
-                out.append(self.model.encode(texts[i:i + 512], batch_size=self.batch_size,
-                                             normalize_embeddings=True, convert_to_numpy=True))
-                if len(texts) > 512:
-                    print(f"    embedded {min(i + 512, len(texts))}/{len(texts)}", flush=True)
-        return np.concatenate(out).astype(np.float32) if out else np.zeros((0, 0), np.float32)
+        if not texts:
+            return np.zeros((0, 0), np.float32)
+        with torch.inference_mode():                        # callers chunk large inputs (see index_store.build)
+            out = self.model.encode(texts, batch_size=self.batch_size,
+                                    normalize_embeddings=True, convert_to_numpy=True)
+        return np.asarray(out, dtype=np.float32)
 
 
 def from_settings(settings, model: str | None = None) -> SentenceTransformerEmbedder:

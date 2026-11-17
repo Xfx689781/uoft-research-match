@@ -31,7 +31,7 @@ def _get_all(conn, kind, model) -> dict[str, tuple[str, np.ndarray]]:
                                   (kind, model))}
 
 
-def build(conn, embedder, ranking: dict, log=print) -> dict:
+def build(conn, embedder, ranking: dict, log=print, chunk_size: int = 256) -> dict:
     """Embed every text that changed since the last build, then (re)assemble all profile vectors."""
     t0 = time.time()
     model = embedder.name
@@ -52,12 +52,15 @@ def build(conn, embedder, ranking: dict, log=print) -> dict:
     stale = [(k, ref, txt) for k, ref, txt in todo if existing[k].get(ref, ("",))[0] != _hash(txt)]
     log(f"texts: {len(todo)} total, {len(stale)} new or changed -> embedding with {model}")
 
-    # 2. embed what changed
-    if stale:
-        vecs = embedder.encode([t for _, _, t in stale])
+    # 2. embed what changed, committing each chunk so an interrupted run (e.g. out of memory) keeps its progress
+    for i in range(0, len(stale), chunk_size):
+        chunk = stale[i:i + chunk_size]
+        vecs = embedder.encode([t for _, _, t in chunk])
         with conn:
-            for (k, ref, txt), v in zip(stale, vecs):
+            for (k, ref, txt), v in zip(chunk, vecs):
                 _put(conn, k, ref, model, _hash(txt), v)
+        if len(stale) > chunk_size:
+            log(f"    saved {i + len(chunk)}/{len(stale)}")
 
     # drop vectors whose text no longer exists (e.g. a re-linked professor lost papers)
     live = {(k, ref) for k, ref, _ in todo}

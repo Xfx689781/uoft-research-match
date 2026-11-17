@@ -133,6 +133,29 @@ def test_incremental_build_skips_unchanged(conn):
     assert stats["embedded"] == 0 and stats["profiles"] == 5
 
 
+def test_interrupted_build_keeps_finished_chunks(tmp_path):
+    c = db.connect(tmp_path / "i.db")
+    c.execute("INSERT INTO departments (id, name, directory_url) VALUES ('cs','Computer Science','https://x')")
+    cs = Department(id="cs", name="Computer Science", directory_url="", parser="")
+    add_prof(c, cs, "Many Papers", ["robotics"], [(f"Paper number {i}", None, 2024) for i in range(10)])
+
+    class Flaky(BowEmbedder):
+        calls = 0
+
+        def encode(self, texts, is_query=False):
+            Flaky.calls += 1
+            if Flaky.calls == 3:
+                raise MemoryError("simulated")
+            return super().encode(texts, is_query)
+
+    with pytest.raises(MemoryError):
+        build(c, Flaky(), RANKING, log=lambda *_: None, chunk_size=4)
+    stats = build(c, BowEmbedder(), RANKING, log=lambda *_: None, chunk_size=4)
+    # 11 texts (1 department page + 10 papers); the two chunks saved before the crash are not redone
+    assert stats["embedded"] == 11 - 8
+    assert stats["profiles"] == 1
+
+
 def test_paper_text_falls_back_without_abstract():
     from researchmatch.profiles import Paper, Professor
     prof = Professor(id="m:x", name="X", department_id="math", department_name="Math", title="", rank="",

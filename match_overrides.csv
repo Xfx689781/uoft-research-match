@@ -1,0 +1,55 @@
+faculty_id,openalex_ids,note
+cs:bo-wang,A5100408160,draft: single-cell / AI in healthcare at CIFAR+UofT matches dept areas
+cs:ishtiaque-ahmed,A5089574660|A5123904578|A5126138988|A5130344979|A5125907527,draft: all UofT HCI/AI-ethics records; split profile
+cs:john-mylopoulos,A5052098157|A5052628903|A5107840206,draft: all software-engineering records (one misspelled Mylopoulis)
+cs:jonathan-kelly,A5001210516|A5126185627|A5161372369|A5124884301|A5135124064,draft: all UofT robotics records; split profile
+cs:kyros-kutulakos,A5146657189,draft: vision/imaging; only 1 work in OpenAlex
+cs:laura-leal-taixe,A5090283032,draft: vision/tracking matches; affiliation Nvidia
+cs:lea-frermann,A5025156794,draft: NLP matches; affiliation Melbourne
+cs:oana-balmau,A5055620336,draft: systems/databases matches; affiliation McGill
+cs:sadia-sharmin,A5066920715,draft: CS education at UofT (not the BUET graph-theory record)
+cs:varinia-bernales,A5139550029|A5044494119,draft: both Bernales records (ML for materials + chemistry); not Yeonghun Kang
+cs:willy-zwaenepoel,A5007706911|A5059332294,draft: distributed systems; second record misspelled
+cs:rick-valenzano,A5123741498,draft: AI at TMU; only 1 work
+cs:lindsey-shorser,A5039751201,draft: operator algebra; same person as math:lindsey-shorser
+cs:qiang-sun,A5101812855|A5123865921|A5135982580|A5159788869,draft: statistics/ML record (Fudan->MBZUAI) plus small UofT+MBZUAI records; not the breast-cancer one
+cs:zhaolei-zhang,A5161723168|A5130550961,draft: Donnelly Centre computational biology records only; A5147417965 / A5135114531 may also be him - check
+cs:dan-heap,NONE,draft: candidates are social policy / history - not him
+cs:gary-baumgartner,NONE,draft: candidate is psychometrics in France
+cs:mario-grech,NONE,draft: candidates are neuroscience / theology in Malta
+cs:mike-mccarthy,NONE,draft: candidates are road safety / fusion / archaeology
+cs:tony-tang,NONE,draft: no HCI candidate among the five offered
+cs:yang-xu,NONE,draft: no computational-linguistics candidate among the five offered
+math:asaf-karagila,A5086246827,draft: set theory matches; affiliation Leeds
+math:dimitrios-karslidis,A5051792171,draft: harmonic analysis (not the wireless-signals record)
+math:frank-tall,A5030050566,draft: set-theoretic topology; only 1 work
+math:kevin-costello,A5007134498|A5104090770,draft: both Perimeter Institute records
+math:lindsey-shorser,A5039751201,draft: operator algebra
+math:maxime-van-de-moortel,A5053789248,draft: general relativity; Princeton record
+math:myrto-mavraki,A5042162519,draft: Niki Myrto Mavraki - arithmetic dynamics at UofT
+math:pam-sargent,A5012977889,draft: geometric analysis + math education
+math:toni-annala,A5015766657,draft: algebraic geometry/topology; IAS record
+math:anthony-lam,NONE,draft: candidates are supply chain / circuits
+math:cindy-blois,NONE,draft: candidate is photonics
+math:felix-recio,NONE,draft: candidates are linguistics / sociology
+math:rick-sharpe,NONE,draft: candidate is software engineering
+stats:basil-singer,A5021266809,draft: probability/risk models (not the materials-science record)
+stats:david-andrews,A5114009798|A5135668019|A5146052189,draft: statistics records; not the glioma/cell-death David William Andrews
+stats:dehan-kong,A5021394202|A5129065646|A5159157564|A5149959612|A5101543967,draft: all UofT records; split profile
+stats:kagba-n-suaray,A5058271859,draft: statistics; affiliation CSU Long Beach
+stats:leonard-wong,A5053260623,draft: Ting-Kam Leonard Wong - math finance at UofT
+stats:linbo-wang,A5008054409|A5134170652|A5138376373|A5159963618|A5059010780,draft: all UofT causal-inference records; split profile
+stats:pascal-tyrrell,A5045621198,draft: Pascal N. Tyrrell (not Prudencia)
+stats:patrick-brown,A5042275901|A5135899834|A5122687896|A5128192106|A5121768256,draft: St. Michael's / Centre for Global Health Research records
+stats:sheldon-lin,A5101972030|A5034033352|A5041499446|A5030271927,draft: X. Sheldon Lin actuarial records; not the orthopaedic surgeon
+stats:tatiana-krikella,A5094272559,draft: epidemiological modelling; York record
+stats:xiaofei-shi,A5093967869|A5147779033|A5152714906,draft: math-finance records only; not particle physics or radar
+stats:david-brenner,NONE,draft: candidates are liver disease / radiation biology
+cs:arvind-gupta,,UNDECIDED: candidates are medical; A5121630345 (ECG) might be him
+stats:arvind-gupta,,UNDECIDED: same name as cs:arvind-gupta - check whether it is the same person
+cs:yu-sun,,UNDECIDED: A5100772261 (robot manipulation) vs A5077878309 (micro-robotics / cell mechanics) - which one is the CS cross-appointee
+math:michael-lorimer,,UNDECIDED: J. W. Lorimer at UofT fits topics but first initial differs
+math:nicholas-derzko,,UNDECIDED: N. A. Derzko (Caltech) - unclear
+stats:lei-sun,,UNDECIDED: statistical genetics; only A5152330240 (1 work) is at UofT - real profile may be missing from candidates
+stats:lijia-wang,,UNDECIDED: none clearly statistics education
+stats:ling-luo,,UNDECIDED: A5100619435 (biomedical text mining) plausible for an adjunct
