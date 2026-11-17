@@ -2,7 +2,7 @@
 
 A website for University of Toronto students looking for a research supervisor: describe your interests in plain language, get professors whose **recent papers** match, with an explanation of each match, the papers behind it, public contact info, and a profile page listing all their recent work.
 
-Current coverage (St. George): **Computer Science**, **Mathematics**, **Statistical Sciences**: 434 faculty, ~11k papers since 2020.
+Current coverage (St. George): **Computer Science**, **Mathematics**, **Statistical Sciences**: 434 faculty, ~12.5k papers since 2020.
 
 ```
 department directories ─► scrape_directories.py ─► SQLite (faculty)
