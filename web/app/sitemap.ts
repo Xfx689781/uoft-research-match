@@ -1,7 +1,9 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL, listProfessors, professorHref } from "@/lib/api";
 
-export const revalidate = 86400; // rebuilt at most daily
+// Rendered per request; the professor list itself is cached for a day (lib/api listProfessors), and a failed
+// fetch is not cached, so a sitemap built while the API was down doesn't stick around.
+export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 // Lets search engines find every professor page, not only the home page.

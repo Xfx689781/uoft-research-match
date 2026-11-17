@@ -10,6 +10,14 @@ services:
     startCommand: python serve_api.py
     healthCheckPath: /healthz
     autoDeploy: true
+    buildFilter:                # only redeploy the API when backend files change (not on website-only pushes)
+      paths:
+        - researchmatch/**
+        - serve_api.py
+        - requirements-serve.txt
+        - departments.yaml
+        - deploy/**
+        - render.yaml
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.8
