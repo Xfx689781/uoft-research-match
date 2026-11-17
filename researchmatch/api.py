@@ -189,6 +189,17 @@ def create_app(db_path: Path, embedder, ranking: dict, explainer_factory=None,
         why = explainer.explain(req.query, results)     # network call outside the lock
         return {"query": req.query, "explanations": {k: {"why": t, "source": s} for k, (t, s) in why.items()}}
 
+    @app.get("/api/professors")
+    def professor_list(request: Request):
+        """One entry per person (cross-appointed faculty appear once), for the website's sitemap."""
+        visitor(request)
+        seen, out = set(), []
+        for p in index.professors:
+            if p.person_key not in seen:
+                seen.add(p.person_key)
+                out.append({"id": p.id, "name": p.name})
+        return {"professors": out}
+
     @app.get("/api/professors/{faculty_id}")
     def professor(faculty_id: str, request: Request):
         visitor(request)

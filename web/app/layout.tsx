@@ -1,15 +1,25 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
-import { formatDate, getMeta } from "@/lib/api";
+import { SITE_URL, formatDate, getMeta } from "@/lib/api";
 import "./globals.css";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 
+const description =
+  "Find a research supervisor at the University of Toronto: describe your interests and get Computer Science, " +
+  "Mathematics and Statistics professors whose recent papers match, with the papers and contact info.";
+
 export const metadata: Metadata = {
-  title: "UofT Research Match",
-  description:
-    "Find University of Toronto professors whose recent research matches your interests, read their papers, and reach out.",
+  metadataBase: new URL(SITE_URL),
+  title: "UofT Research Match: find a research supervisor at the University of Toronto",
+  description,
+  keywords: ["UofT", "University of Toronto", "research supervisor", "undergraduate research", "professors",
+    "computer science", "mathematics", "statistics", "research match"],
+  alternates: { canonical: "/" },
+  openGraph: { title: "UofT Research Match", description, type: "website", siteName: "UofT Research Match" },
+  // Google Search Console: set GOOGLE_SITE_VERIFICATION in Vercel to the code Google gives you
+  verification: process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : undefined,
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

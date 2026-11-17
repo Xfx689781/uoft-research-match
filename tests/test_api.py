@@ -126,3 +126,9 @@ def test_proxy_secret_required_and_visitor_ip_used(conn, monkeypatch):  # noqa: 
     assert c.post("/api/search", json=body, headers={**ok, "x-visitor-ip": "1.1.1.1"}).status_code == 429
     assert c.post("/api/search", json=body, headers={**ok, "x-visitor-ip": "2.2.2.2"}).status_code == 200
     assert c.get("/healthz").status_code == 200
+
+
+def test_professor_list_one_entry_per_person(client):
+    profs = client.get("/api/professors").json()["professors"]
+    assert len(profs) == 5 and len({p["id"] for p in profs}) == 5
+    assert all(client.get(f"/api/professors/{p['id']}").status_code == 200 for p in profs)

@@ -130,6 +130,25 @@ export async function getProfessor(id: string): Promise<Professor | null> {
   return res.json();
 }
 
+// Public address of the site, for the sitemap and search-engine metadata. SITE_URL wins (set it when a
+// custom domain is added); on Vercel, VERCEL_PROJECT_PRODUCTION_URL is provided automatically.
+export const SITE_URL = (
+  process.env.SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3000")
+).replace(/\/$/, "");
+
+export async function listProfessors(): Promise<{ id: string; name: string }[]> {
+  const res = await fetch(`${API_URL}/api/professors`, {
+    next: { revalidate: 86400 },
+    headers: serverApiHeaders(),
+    signal: AbortSignal.timeout(90_000),
+  });
+  if (!res.ok) throw new Error(`professor list failed (${res.status})`);
+  return (await res.json()).professors;
+}
+
 export async function getMeta(): Promise<Meta | null> {
   try {
     const res = await fetch(`${API_URL}/api/meta`, {

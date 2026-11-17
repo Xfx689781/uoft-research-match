@@ -2,15 +2,28 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import PaperList from "@/components/PaperList";
-import { getProfessor } from "@/lib/api";
+import { getProfessor, professorHref } from "@/lib/api";
 
 type Props = { params: Promise<{ id: string }> };
 
 export const maxDuration = 120; // Vercel: allow for the free-tier API waking up
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const p = await getProfessor(decodeURIComponent((await params).id)).catch(() => null);
-  return { title: p ? `${p.name} · UofT Research Match` : "Professor · UofT Research Match" };
+  const id = decodeURIComponent((await params).id);
+  const p = await getProfessor(id).catch(() => null);
+  if (!p) return { title: "Professor · UofT Research Match" };
+  const depts = p.appointments.map((a) => a.department).join(", ");
+  const areas = (p.research_areas.length ? p.research_areas : p.topics.map((t) => t.name)).slice(0, 5).join(", ");
+  const description =
+    `${p.name}, ${p.title}, ${depts}, University of Toronto.` +
+    (areas ? ` Research: ${areas}.` : "") +
+    (p.papers.length ? ` ${p.papers.length} recent papers, with abstracts and contact info.` : "");
+  return {
+    title: `${p.name} · UofT Research Match`,
+    description,
+    alternates: { canonical: professorHref(id) },
+    openGraph: { title: `${p.name} · UofT Research Match`, description, type: "profile" },
+  };
 }
 
 export default async function ProfessorPage({ params }: Props) {
