@@ -141,6 +141,11 @@ def create_app(db_path: Path, embedder, ranking: dict, explainer_factory=None,
     def healthz():
         return {"ok": True}
 
+    @app.get("/")
+    def root():
+        return {"ok": True, "service": "UofT Research Match API",
+                "note": "This is the backend. Open the website instead; /healthz is the health check."}
+
     def run_search(req: SearchRequest) -> list[Result]:
         qv = embedder.encode([req.query.strip()], is_query=True)[0]
         return index.search(qv, k=req.k, departments=req.departments, include_emeriti=req.include_emeriti)
