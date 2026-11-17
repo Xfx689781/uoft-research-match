@@ -8,11 +8,14 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import threading
+import time
+from collections import defaultdict, deque
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -28,6 +31,45 @@ class SearchRequest(BaseModel):
     departments: list[str] | None = None
     include_emeriti: bool = True
     k: int = Field(default=10, ge=1, le=30)
+
+
+class RateLimiter:
+    """Sliding-window limit per client: at most `limit` requests in `window` seconds."""
+
+    def __init__(self, limit: int, window: float = 60.0, clock=time.monotonic):
+        self.limit, self.window, self.clock = limit, window, clock
+        self.hits: dict[str, deque] = defaultdict(deque)
+        self.lock = threading.Lock()
+
+    def allow(self, key: str) -> bool:
+        now = self.clock()
+        with self.lock:
+            q = self.hits[key]
+            while q and q[0] <= now - self.window:
+                q.popleft()
+            if len(q) >= self.limit:
+                return False
+            q.append(now)
+            if len(self.hits) > 10_000:                 # forget idle clients so memory stays bounded
+                for k in [k for k, v in self.hits.items() if not v]:
+                    del self.hits[k]
+            return True
+
+
+_LOCAL = {"127.0.0.1", "::1", "::ffff:127.0.0.1", "localhost", "testclient"}
+
+
+def client_ip(request: Request) -> str:
+    """The visitor's IP. Requests arrive via the Next.js proxy (and possibly a Cloudflare tunnel) on this
+    machine, so forwarding headers are trusted only when the direct peer is local. In X-Forwarded-For the
+    rightmost non-local entry is the one our own proxy added; entries to its left can be spoofed."""
+    peer = request.client.host if request.client else ""
+    if peer not in _LOCAL:
+        return peer
+    if cf := request.headers.get("cf-connecting-ip"):
+        return cf.strip()
+    hops = [h.strip() for h in request.headers.get("x-forwarded-for", "").split(",") if h.strip()]
+    return next((h for h in reversed(hops) if h not in _LOCAL), peer)
 
 
 def match_label(score: float, top: float) -> str:
@@ -77,6 +119,12 @@ def create_app(db_path: Path, embedder, ranking: dict, explainer_factory=None,
     index = load_index(conn, embedder.name, ranking)
     explainer = (explainer_factory or Explainer)(conn)
     by_id = {p.id: p for p in index.professors}
+    search_limit = RateLimiter(int(os.getenv("SEARCH_PER_MINUTE", "30")))
+    explain_limit = RateLimiter(int(os.getenv("EXPLAIN_PER_MINUTE", "6")))
+
+    def check(limiter: RateLimiter, request: Request):
+        if not limiter.allow(client_ip(request)):
+            raise HTTPException(429, "too many requests; please wait a minute")
 
     def run_search(req: SearchRequest) -> list[Result]:
         qv = embedder.encode([req.query.strip()], is_query=True)[0]
@@ -100,7 +148,8 @@ def create_app(db_path: Path, embedder, ranking: dict, explainer_factory=None,
         }
 
     @app.post("/api/search")
-    def search(req: SearchRequest):
+    def search(req: SearchRequest, request: Request):
+        check(search_limit, request)
         with lock:
             results = run_search(req)
             cached = {}
@@ -112,7 +161,8 @@ def create_app(db_path: Path, embedder, ranking: dict, explainer_factory=None,
             for r in results]}
 
     @app.post("/api/explain")
-    def explain(req: SearchRequest):
+    def explain(req: SearchRequest, request: Request):
+        check(explain_limit, request)
         with lock:
             results = run_search(req)
         why = explainer.explain(req.query, results)     # network call outside the lock

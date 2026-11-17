@@ -34,8 +34,10 @@ cd web && npm install && cd ..
 | `ANTHROPIC_API_KEY` | "why this match" sentences | Optional. Without it the site uses template sentences. The student's query and the matched professors' public research info are sent to the Claude API. |
 | `CONTACT_EMAIL` | optional | Added to the scraper User-Agent and sent to OpenAlex as `mailto`. |
 | `EXPLAIN_MODEL` | optional | Defaults to `claude-opus-5-5`. |
-| `NEXT_PUBLIC_API_URL` (in `web/.env.local`) | frontend | Defaults to `http://localhost:8000`. |
-| `ALLOWED_ORIGINS` | API CORS | Comma-separated; defaults to `http://localhost:3000`. |
+| `API_URL` (in `web/.env.local`) | frontend server | Where the Next.js server reaches the Python API. Defaults to `http://127.0.0.1:8000`. Browsers never call it directly: they call the site's own `/api/*`, which `web/app/api/[...path]/route.ts` forwards. |
+| `ALLOWED_ORIGINS` | API CORS | Comma-separated; defaults to `http://localhost:3000`. Only matters if a browser calls the API directly. |
+| `SEARCH_PER_MINUTE` / `EXPLAIN_PER_MINUTE` | abuse limits | Per visitor IP; default 30 and 6. Over the limit the API returns 429. |
+| `EXPLAIN_DAILY_LIMIT` | Claude spend cap | Claude requests per UTC day (one per uncached search); default 300. Beyond it, template sentences are used. Resets when the API restarts. |
 
 ## Run locally
 
@@ -43,6 +45,8 @@ cd web && npm install && cd ..
 python serve_api.py          # API on http://localhost:8000  (interactive docs at /docs)
 cd web && npm run dev        # site on http://localhost:3000
 ```
+
+For anyone else to use the site, run the production build (`cd web && npm run build && npm run start`) and share port 3000 only. The Python API listens on 127.0.0.1 and is reached through the Next.js server, so it never needs to be exposed. Per-IP limits trust `CF-Connecting-IP` (set by Cloudflare) or else `X-Forwarded-For`, which a visitor can fake. The daily Claude cap is what bounds cost.
 
 Command-line search without the website:
 

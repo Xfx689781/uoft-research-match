@@ -1,4 +1,13 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// In the browser, call this site's own /api (proxied to the Python API by next.config.ts rewrites).
+// On the server (professor pages, footer metadata), call the Python API directly.
+export const API_URL =
+  typeof window === "undefined" ? (process.env.API_URL ?? "http://127.0.0.1:8000") : "";
+
+export class ApiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+  }
+}
 
 export type Appointment = {
   department_id: string;
@@ -94,7 +103,7 @@ async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promi
     body: JSON.stringify(body),
     signal,
   });
-  if (!res.ok) throw new Error(`${path} failed (${res.status})`);
+  if (!res.ok) throw new ApiError(res.status, `${path} failed (${res.status})`);
   return res.json();
 }
 

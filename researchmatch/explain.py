@@ -82,11 +82,14 @@ def _prompt_item(r: Result) -> dict:
 
 
 class Explainer:
-    def __init__(self, conn, api_key: str | None = None, model: str = MODEL):
+    def __init__(self, conn, api_key: str | None = None, model: str = MODEL, daily_limit: int | None = None):
         self.conn = conn
         self.model = model
         self.api_key = api_key if api_key is not None else os.getenv("ANTHROPIC_API_KEY")
         self._client = None
+        # cap on Claude requests per UTC day (one request per uncached search); beyond it, templates are used
+        self.daily_limit = daily_limit if daily_limit is not None else int(os.getenv("EXPLAIN_DAILY_LIMIT", "300"))
+        self._day, self._calls_today = "", 0
         conn.execute(CACHE_DDL)
         conn.commit()
 
@@ -124,7 +127,7 @@ class Explainer:
             else:
                 todo.append(r)
 
-        if todo and (client := self._client_or_none()):
+        if todo and (client := self._client_or_none()) and self._take_budget():
             try:
                 generated = self._call(client, query, todo)
                 now = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -142,6 +145,19 @@ class Explainer:
         for r in results:
             out.setdefault(r.professor.person_key, (template_why(r), "template"))
         return out
+
+    def _take_budget(self) -> bool:
+        today = datetime.now(timezone.utc).date().isoformat()
+        if today != self._day:
+            self._day, self._calls_today = today, 0
+        if self._calls_today >= self.daily_limit:
+            if self._calls_today == self.daily_limit:
+                log.warning("EXPLAIN_DAILY_LIMIT (%d) reached; using template explanations until tomorrow (UTC)",
+                            self.daily_limit)
+                self._calls_today += 1                  # log once
+            return False
+        self._calls_today += 1
+        return True
 
     def _call(self, client, query: str, results: list[Result]) -> dict[str, str]:
         payload = {"student_interests": query, "professors": [_prompt_item(r) for r in results]}

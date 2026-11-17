@@ -70,3 +70,44 @@ def test_meta(client):
     m = client.get("/api/meta").json()
     assert {d["id"] for d in m["departments"]} == {"cs", "math", "stats"}
     assert m["searchable_professors"] == 5 and m["data_last_updated"]
+
+
+def test_search_is_rate_limited_per_visitor(conn, tmp_path, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("SEARCH_PER_MINUTE", "2")
+    db_path = conn.execute("PRAGMA database_list").fetchone()[2]
+    c = TestClient(create_app(db_path, BowEmbedder(), RANKING, explainer_factory=FakeExplainer))
+    body = {"query": "robots", "k": 1}
+    alice, bob = {"x-forwarded-for": "1.1.1.1"}, {"x-forwarded-for": "2.2.2.2, 127.0.0.1"}
+    assert [c.post("/api/search", json=body, headers=alice).status_code for _ in range(3)] == [200, 200, 429]
+    assert c.post("/api/search", json=body, headers=bob).status_code == 200      # other visitors unaffected
+
+
+def test_rate_limiter_window_slides():
+    from researchmatch.api import RateLimiter
+    t = [0.0]
+    rl = RateLimiter(2, window=60, clock=lambda: t[0])
+    assert rl.allow("a") and rl.allow("a") and not rl.allow("a")
+    t[0] = 61
+    assert rl.allow("a")
+
+
+def test_daily_llm_cap_falls_back_to_templates(conn):  # noqa: F811
+    from test_ranking import search
+    ex = FakeExplainer(conn)
+    ex.daily_limit = 1
+    r1 = search(conn, "robotics", k=2)
+    assert {s for _, s in ex.explain("robotics", r1).values()} == {"llm"}
+    r2 = search(conn, "topology", k=2)
+    assert {s for _, s in ex.explain("topology", r2).values()} == {"template"} and ex.calls == 1
+
+
+def test_client_ip_ignores_spoofed_forwarded_entries():
+    from types import SimpleNamespace
+    from researchmatch.api import client_ip
+
+    def req(peer, **h):
+        return SimpleNamespace(client=SimpleNamespace(host=peer), headers=h)
+    assert client_ip(req("127.0.0.1", **{"x-forwarded-for": "6.6.6.6, 5.5.5.5, 127.0.0.1"})) == "5.5.5.5"
+    assert client_ip(req("127.0.0.1", **{"cf-connecting-ip": "4.4.4.4", "x-forwarded-for": "6.6.6.6"})) == "4.4.4.4"
+    assert client_ip(req("8.8.8.8", **{"x-forwarded-for": "6.6.6.6"})) == "8.8.8.8"   # not via our proxy
+    assert client_ip(req("127.0.0.1")) == "127.0.0.1"

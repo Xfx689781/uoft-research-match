@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import ResultCard from "@/components/ResultCard";
-import { DEPARTMENTS, explain, search, type SearchParams, type SearchResult } from "@/lib/api";
+import { ApiError, DEPARTMENTS, explain, search, type SearchParams, type SearchResult } from "@/lib/api";
 
 const EXAMPLES = [
   "Bayesian inference and probabilistic machine learning",
@@ -57,7 +57,11 @@ export default function Home() {
       }
     } catch (e) {
       if (!ctrl.signal.aborted) {
-        setError("Search failed. Is the API running? (python serve_api.py)");
+        setError(
+          e instanceof ApiError && e.status === 429
+            ? "Too many searches in a short time. Please wait a minute and try again."
+            : "Search failed. The server may be down; please try again later.",
+        );
         setLoading(false);
       }
       console.error(e);
