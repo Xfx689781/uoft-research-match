@@ -1,0 +1,27 @@
+# Render Blueprint for the Python API. In Render: New -> Blueprint -> pick this repo.
+# Secrets marked sync: false are entered in the Render dashboard, never committed.
+services:
+  - type: web
+    name: uoft-research-match-api
+    runtime: python
+    plan: free
+    region: ohio
+    buildCommand: pip install -r requirements-serve.txt && python -c "from fastembed import TextEmbedding; TextEmbedding('BAAI/bge-small-en-v1.5')"
+    startCommand: python serve_api.py
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: EMBEDDING_BACKEND
+        value: fastembed
+      - key: FASTEMBED_CACHE_PATH
+        value: /opt/render/project/src/.fastembed_cache
+      - key: OPENBLAS_NUM_THREADS
+        value: "1"
+      - key: EXPLAIN_DAILY_LIMIT
+        value: "300"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: PROXY_SECRET
+        sync: false

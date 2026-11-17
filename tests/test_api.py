@@ -111,3 +111,18 @@ def test_client_ip_ignores_spoofed_forwarded_entries():
     assert client_ip(req("127.0.0.1", **{"cf-connecting-ip": "4.4.4.4", "x-forwarded-for": "6.6.6.6"})) == "4.4.4.4"
     assert client_ip(req("8.8.8.8", **{"x-forwarded-for": "6.6.6.6"})) == "8.8.8.8"   # not via our proxy
     assert client_ip(req("127.0.0.1")) == "127.0.0.1"
+
+
+def test_proxy_secret_required_and_visitor_ip_used(conn, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("PROXY_SECRET", "s3cret")
+    monkeypatch.setenv("SEARCH_PER_MINUTE", "1")
+    db_path = conn.execute("PRAGMA database_list").fetchone()[2]
+    c = TestClient(create_app(db_path, BowEmbedder(), RANKING, explainer_factory=FakeExplainer))
+    body = {"query": "robots", "k": 1}
+    assert c.post("/api/search", json=body).status_code == 403
+    assert c.get("/api/meta", headers={"x-proxy-secret": "wrong"}).status_code == 403
+    ok = {"x-proxy-secret": "s3cret"}
+    assert c.post("/api/search", json=body, headers={**ok, "x-visitor-ip": "1.1.1.1"}).status_code == 200
+    assert c.post("/api/search", json=body, headers={**ok, "x-visitor-ip": "1.1.1.1"}).status_code == 429
+    assert c.post("/api/search", json=body, headers={**ok, "x-visitor-ip": "2.2.2.2"}).status_code == 200
+    assert c.get("/healthz").status_code == 200

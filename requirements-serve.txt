@@ -1,0 +1,8 @@
+# Only what the deployed API needs (no PyTorch / scraping libraries). Full pipeline: requirements.txt
+fastapi>=0.110
+uvicorn[standard]>=0.29
+numpy>=2.0
+pyyaml>=6.0
+python-dotenv>=1.0
+anthropic>=2.0
+fastembed>=0.9

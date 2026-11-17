@@ -6,6 +6,8 @@ import { getProfessor } from "@/lib/api";
 
 type Props = { params: Promise<{ id: string }> };
 
+export const maxDuration = 120; // Vercel: allow for the free-tier API waking up
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await getProfessor(decodeURIComponent((await params).id)).catch(() => null);
   return { title: p ? `${p.name} · UofT Research Match` : "Professor · UofT Research Match" };

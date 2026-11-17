@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import hmac
 import json
 import os
 import sqlite3
@@ -121,17 +122,32 @@ def create_app(db_path: Path, embedder, ranking: dict, explainer_factory=None,
     by_id = {p.id: p for p in index.professors}
     search_limit = RateLimiter(int(os.getenv("SEARCH_PER_MINUTE", "30")))
     explain_limit = RateLimiter(int(os.getenv("EXPLAIN_PER_MINUTE", "6")))
+    # Deployed: the API is only meant to be called by the website's server, which proves it with this shared
+    # secret and passes the visitor's IP in x-visitor-ip (the API itself only ever sees the website's IP).
+    proxy_secret = os.getenv("PROXY_SECRET", "")
+
+    def visitor(request: Request) -> str:
+        if proxy_secret:
+            if not hmac.compare_digest(request.headers.get("x-proxy-secret", ""), proxy_secret):
+                raise HTTPException(403, "this API is only available through the website")
+            return request.headers.get("x-visitor-ip") or "unknown"
+        return client_ip(request)
 
     def check(limiter: RateLimiter, request: Request):
-        if not limiter.allow(client_ip(request)):
+        if not limiter.allow(visitor(request)):
             raise HTTPException(429, "too many requests; please wait a minute")
+
+    @app.get("/healthz")
+    def healthz():
+        return {"ok": True}
 
     def run_search(req: SearchRequest) -> list[Result]:
         qv = embedder.encode([req.query.strip()], is_query=True)[0]
         return index.search(qv, k=req.k, departments=req.departments, include_emeriti=req.include_emeriti)
 
     @app.get("/api/meta")
-    def meta():
+    def meta(request: Request):
+        visitor(request)
         with lock:
             depts = [dict(r) for r in conn.execute(
                 "SELECT d.id, d.name, d.directory_url, d.last_scraped_at, COUNT(f.id) AS faculty "
@@ -169,7 +185,8 @@ def create_app(db_path: Path, embedder, ranking: dict, explainer_factory=None,
         return {"query": req.query, "explanations": {k: {"why": t, "source": s} for k, (t, s) in why.items()}}
 
     @app.get("/api/professors/{faculty_id}")
-    def professor(faculty_id: str):
+    def professor(faculty_id: str, request: Request):
+        visitor(request)
         p = by_id.get(faculty_id)
         if p is None:
             raise HTTPException(404, "professor not found")

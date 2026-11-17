@@ -3,6 +3,13 @@
 export const API_URL =
   typeof window === "undefined" ? (process.env.API_URL ?? "http://127.0.0.1:8000") : "";
 
+// Server-only (not NEXT_PUBLIC_, so never in browser bundles): proves to the deployed API that the call
+// comes from this website.
+export function serverApiHeaders(): Record<string, string> {
+  const secret = process.env.PROXY_SECRET;
+  return secret ? { "x-proxy-secret": secret } : {};
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -114,7 +121,10 @@ export const explain = (p: SearchParams, signal?: AbortSignal) =>
   post<{ query: string; explanations: Record<string, { why: string; source: string }> }>("/api/explain", p, signal);
 
 export async function getProfessor(id: string): Promise<Professor | null> {
-  const res = await fetch(`${API_URL}/api/professors/${encodeURIComponent(id)}`, { cache: "no-store" });
+  const res = await fetch(`${API_URL}/api/professors/${encodeURIComponent(id)}`, {
+    cache: "no-store",
+    headers: serverApiHeaders(),
+  });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`professor fetch failed (${res.status})`);
   return res.json();
@@ -122,7 +132,11 @@ export async function getProfessor(id: string): Promise<Professor | null> {
 
 export async function getMeta(): Promise<Meta | null> {
   try {
-    const res = await fetch(`${API_URL}/api/meta`, { next: { revalidate: 300 } });
+    const res = await fetch(`${API_URL}/api/meta`, {
+      next: { revalidate: 300 },
+      headers: serverApiHeaders(),
+      signal: AbortSignal.timeout(8000), // a sleeping free-tier API must not hold up every page
+    });
     return res.ok ? res.json() : null;
   } catch {
     return null;

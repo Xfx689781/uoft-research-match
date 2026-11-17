@@ -18,6 +18,7 @@ export default function Home() {
   const [includeEmeriti, setIncludeEmeriti] = useState(true);
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [slow, setSlow] = useState(false);
   const [explaining, setExplaining] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -36,8 +37,12 @@ export default function Home() {
     };
     setLoading(true);
     setError(null);
+    setSlow(false);
+    const slowTimer = setTimeout(() => setSlow(true), 5000);
     try {
       const { results } = await search(params, ctrl.signal);
+      clearTimeout(slowTimer);
+      setSlow(false);
       setResults(results);
       setLoading(false);
       if (results.some((r) => r.why_source === "template")) {
@@ -56,6 +61,8 @@ export default function Home() {
         }
       }
     } catch (e) {
+      clearTimeout(slowTimer);
+      setSlow(false);
       if (!ctrl.signal.aborted) {
         setError(
           e instanceof ApiError && e.status === 429
@@ -130,6 +137,12 @@ export default function Home() {
           </button>
         </div>
         {depts.length === 0 && <p className="mt-2 text-xs text-slate-500">No filter selected: searching all three departments.</p>}
+        {slow && (
+          <p className="mt-2 text-sm text-slate-600">
+            Waking up the server. It sleeps when nobody has used it for a while, so the first search can take
+            up to a minute.
+          </p>
+        )}
       </form>
 
       {results === null && !loading && (

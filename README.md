@@ -20,7 +20,7 @@ Requirements: Python 3.11+, Node 20+.
 ```bash
 python -m venv .venv
 .venv/Scripts/activate            # Windows   (macOS/Linux: source .venv/bin/activate)
-pip install -r requirements.txt
+pip install -r requirements.txt   # includes PyTorch; the deployed API only needs requirements-serve.txt
 cp .env.example .env              # then fill it in (see below)
 
 cd web && npm install && cd ..
@@ -53,6 +53,20 @@ Command-line search without the website:
 ```bash
 python search.py "causal inference in healthcare data" --dept stats --dept cs -k 10
 ```
+
+## Deploying (Vercel + Render)
+
+The website runs on **Vercel** and the Python API on **Render**. Browsers only talk to Vercel; Vercel's server calls Render with a shared `PROXY_SECRET`, and Render refuses requests without it.
+
+The deployed API uses `EMBEDDING_BACKEND=fastembed`: the same bge model on ONNX instead of PyTorch. It gives the same vectors (cosine 1.0000 with the same 256-token truncation) in about 285 MB of RAM, which fits Render's free 512 MB. It serves from `deploy/research_match.db.gz`, which is committed to the repo.
+
+1. Make a long random secret, e.g. `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
+2. **Render**: *New → Blueprint →* this repo (it reads `render.yaml`). When asked, enter `ANTHROPIC_API_KEY` and `PROXY_SECRET`. Wait for the deploy and copy the URL (`https://….onrender.com`). Opening `/healthz` should show `{"ok":true}`.
+3. **Vercel**: *Add New → Project →* this repo, set **Root Directory** to `web`, and add environment variables `API_URL` = the Render URL (no trailing slash) and `PROXY_SECRET` = the same secret. Deploy.
+
+Both redeploy automatically on every push to `main`. The free Render plan sleeps after 15 idle minutes, so the first search after a pause takes up to a minute (the site tells the user it is waking up). The paid Starter plan removes the sleep.
+
+**Updating the data on the live site:** after the refresh steps below, run `python export_serving_db.py`, then commit `deploy/research_match.db.gz` and push.
 
 ## Refreshing the data
 

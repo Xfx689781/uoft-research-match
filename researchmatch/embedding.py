@@ -1,6 +1,7 @@
 """Text embedders. Anything with `.name` and `.encode(texts, is_query)` returning L2-normalized rows works."""
 from __future__ import annotations
 
+import os
 from typing import Protocol
 
 import numpy as np
@@ -46,8 +47,35 @@ class SentenceTransformerEmbedder:
         return np.asarray(out, dtype=np.float32)
 
 
-def from_settings(settings, model: str | None = None) -> SentenceTransformerEmbedder:
+class FastEmbedEmbedder:
+    """ONNX runtime instead of PyTorch: same vectors for the bge models (checked to cosine 1.0000 with the
+    same truncation), in a fraction of the memory. Used by the deployed API, which only embeds queries."""
+
+    def __init__(self, model_name: str, query_prefix: str = "", max_seq_length: int | None = None,
+                 threads: int | None = None):
+        from fastembed import TextEmbedding
+
+        self.name = model_name
+        self.query_prefix = query_prefix
+        self.model = TextEmbedding(model_name, threads=threads)
+        if max_seq_length:
+            self.model.model.tokenizer.enable_truncation(max_length=int(max_seq_length))
+
+    def encode(self, texts: list[str], is_query: bool = False) -> np.ndarray:
+        if not texts:
+            return np.zeros((0, 0), np.float32)
+        if is_query and self.query_prefix:
+            texts = [self.query_prefix + t for t in texts]
+        return normalize(np.array(list(self.model.embed(texts))))
+
+
+def from_settings(settings, model: str | None = None, backend: str | None = None):
+    """backend: 'sentence-transformers' (default; needed for building) or 'fastembed' (light, for serving).
+    The EMBEDDING_BACKEND environment variable overrides departments.yaml."""
     e = settings.embedding
-    return SentenceTransformerEmbedder(model or e.get("model", "BAAI/bge-small-en-v1.5"),
-                                       e.get("query_prefix", ""), int(e.get("batch_size", 64)),
+    name = model or e.get("model", "BAAI/bge-small-en-v1.5")
+    backend = backend or os.getenv("EMBEDDING_BACKEND") or e.get("backend", "sentence-transformers")
+    if backend == "fastembed":
+        return FastEmbedEmbedder(name, e.get("query_prefix", ""), e.get("max_seq_length"), e.get("threads"))
+    return SentenceTransformerEmbedder(name, e.get("query_prefix", ""), int(e.get("batch_size", 64)),
                                        e.get("max_seq_length"), e.get("threads"))
