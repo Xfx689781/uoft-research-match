@@ -21,6 +21,8 @@ from collections import Counter
 from datetime import date, datetime, timezone
 from types import SimpleNamespace
 
+import ftfy
+
 from researchmatch import db
 from researchmatch.config import load_settings
 from researchmatch.linking import LinkDecision, ScoredCandidate, decide, name_variants, score_candidates
@@ -77,9 +79,11 @@ def clean_works(raw: list[dict]) -> list[dict]:
         loc = w.get("primary_location") or {}
         src = loc.get("source") or {}
         landing = loc.get("landing_page_url") or ""
+        abstract = reconstruct_abstract(w.get("abstract_inverted_index"))
+        title = ftfy.fix_text(title)                       # OpenAlex has some double-encoded text ("â€¦")
         rec = {
             "id": w["id"], "doi": w.get("doi"), "title": title,
-            "abstract": reconstruct_abstract(w.get("abstract_inverted_index")),
+            "abstract": ftfy.fix_text(abstract) if abstract else None,
             "year": w.get("publication_year"), "pub_date": w.get("publication_date"),
             "venue": src.get("display_name") or ("arXiv" if "arxiv.org" in landing else None),
             "type": w.get("type"), "url": w.get("doi") or landing or w["id"],

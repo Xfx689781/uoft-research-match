@@ -10,7 +10,9 @@ defaults:
 embedding:
   model: BAAI/bge-small-en-v1.5     # any sentence-transformers model; re-run build_embeddings.py after changing
   query_prefix: "Represent this sentence for searching relevant passages: "   # bge models want this on queries
-  batch_size: 64
+  batch_size: 8                     # small batches + capped length keep RAM use low (dev machine has ~1 GB free)
+  max_seq_length: 256
+  threads: 4
 
 ranking:
   profile_weight: 0.5               # score = w * sim(query, profile) + (1 - w) * mean sim(query, top papers)
@@ -74,6 +76,7 @@ departments:
     page_type: drupal_paginated_with_profiles   # ?page=N pagination plus /all-faculty/<slug> profile pages (per search index)
     parser: artsci_drupal
     access: blocked_bot_challenge         # same interstitial as Math
-    openalex_fields: [Mathematics, Decision Sciences]
-    openalex_related_fields: [Computer Science, Medicine, Health Professions, Economics, Econometrics and Finance,
+    # statistical ML is filed under Computer Science in OpenAlex, so it counts as a primary field here
+    openalex_fields: [Mathematics, Decision Sciences, Computer Science]
+    openalex_related_fields: [Medicine, Health Professions, Economics, Econometrics and Finance,
                               Social Sciences, Biochemistry, Genetics and Molecular Biology, Environmental Science]

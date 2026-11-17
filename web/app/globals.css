@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy-50: #eef2f9;
+  --color-navy-100: #d9e1f0;
+  --color-navy-600: #2b4a86;
+  --color-navy-700: #1e3765;
+  --color-navy-800: #172b50;
+  --color-navy-900: #0f1d38;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: #f7f8fb;
+  color: #1a2233;
+}
+
+/* keep long paper titles and emails from forcing horizontal scroll on phones */
+.break-anywhere {
+  overflow-wrap: anywhere;
+}

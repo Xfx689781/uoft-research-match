@@ -130,6 +130,14 @@ def test_weak_institution_far_record_not_chosen_as_main():
     assert d.best.id.endswith("A1")
 
 
+def test_namesake_with_old_uoft_tie_is_not_a_rival():   # Daniel Roy: Vector/UofT vs. Montreal physician
+    real = author("A1", "Daniel M. Roy", 138, topics=[("Stochastic Gradient Optimization", "Computer Science", 30)])
+    doc = author("A2", "Daniel Roy", 290, last_known=(OTHER,), past=[(UOFT, [2015])],
+                 topics=[("Intracranial Aneurysms", "Medicine", 30)])
+    d = run(fac("Daniel Roy", ["Statistical Computing"]), [real, doc])
+    assert d.status == "accepted" and d.best.id.endswith("A1")
+
+
 def test_no_uoft_affiliation_goes_to_review_not_accept():   # e.g. status-only faculty searched without filter
     d = run(fac("Marcus Brubaker", ["AI"]), [author("A1", "Marcus A. Brubaker", 90, last_known=(OTHER,))])
     assert d.status == "review"

@@ -71,6 +71,24 @@ CREATE TABLE IF NOT EXISTS works (
     topics      TEXT NOT NULL DEFAULT '[]'        -- JSON list of topic names
 );
 
+-- Step 3: vectors. One row per (kind, ref_id, model). Moves to a pgvector column in Postgres.
+--   kind = 'paper'   ref_id = '<faculty_id>|<work_id>'  (fallback text depends on the professor)
+--   kind = 'dept' | 'topics' | 'profile'   ref_id = faculty_id
+CREATE TABLE IF NOT EXISTS embeddings (
+    kind       TEXT NOT NULL,
+    ref_id     TEXT NOT NULL,
+    model      TEXT NOT NULL,
+    text_hash  TEXT NOT NULL,                     -- skip re-embedding unchanged text
+    dim        INTEGER NOT NULL,
+    vector     BLOB NOT NULL,                     -- float32 little-endian
+    PRIMARY KEY (kind, ref_id, model)
+);
+
+CREATE TABLE IF NOT EXISTS build_info (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS faculty_works (
     faculty_id  TEXT NOT NULL REFERENCES faculty(id) ON DELETE CASCADE,
     work_id     TEXT NOT NULL REFERENCES works(id),

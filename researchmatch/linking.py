@@ -208,7 +208,10 @@ def decide(scored: list[ScoredCandidate]) -> LinkDecision:
                           and s.affiliation >= top.affiliation and s.name >= 0.9]
     best = max(contenders, key=lambda s: s.author.get("works_count", 0))
     merged = [s for s in scored if s is not best and _is_split_fragment(best, s)]
-    rivals = sorted((s for s in scored if s is not best and s not in merged and s.name >= 0.8),
+    # A namesake with a clearly weaker UofT tie (e.g. current UofT/Vector vs. UofT only years ago)
+    # doesn't make the match ambiguous.
+    rivals = sorted((s for s in scored if s is not best and s not in merged and s.name >= 0.8
+                     and s.affiliation >= best.affiliation - 0.2),
                     key=lambda s: s.confidence, reverse=True)
     if rivals and best.confidence - rivals[0].confidence < TIE_MARGIN:
         return LinkDecision("review", f"ambiguous: {rivals[0].author.get('display_name')} "

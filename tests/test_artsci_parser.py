@@ -102,3 +102,26 @@ def test_filters_non_faculty_and_bad_email(stats):
 ])
 def test_appointment_type_from_title(title, appt):
     assert appointment_type_from_title(title) == appt
+
+
+# --- full "View All" saves (2026-11-16) ----------------------------------------------------
+
+@pytest.mark.parametrize("fixture,dept_id,expected", [
+    ("math_faculty_all_2026-11-16.html", "math", 139),
+    ("stats_faculty_all_2026-11-16.html", "stats", 81),
+])
+def test_full_directory_saves(fixture, dept_id, expected):
+    html = (FIXTURES / fixture).read_text(encoding="utf-8")
+    dept = Department(id=dept_id, name=dept_id, directory_url=URL, parser="artsci_drupal")
+    res = ArtsciDrupalParser().parse(html, saved_from_url(html), dept)
+    assert res.expected_total == expected
+    assert len(res.records) == expected                 # everyone listed is faculty; nobody dropped
+    assert len({r.id for r in res.records}) == expected
+    assert all(r.profile_url and r.profile_url.startswith("https://") for r in res.records)
+
+
+def test_math_title_with_honorifics():
+    html = (FIXTURES / "math_faculty_all_2026-11-16.html").read_text(encoding="utf-8")
+    dept = Department(id="math", name="Mathematics", directory_url=URL, parser="artsci_drupal")
+    r = next(r for r in ArtsciDrupalParser().parse(html, URL, dept).records if r.name == "James Arthur")
+    assert r.title == "University Professor Emeritus, FRS, FRSC" and r.is_emeritus

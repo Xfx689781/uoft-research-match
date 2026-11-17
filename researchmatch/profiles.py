@@ -43,6 +43,12 @@ class Professor:
     topics: list[dict]                 # OpenAlex author topics [{name, subfield, field, count}]
     papers: list[Paper]
     link_status: str | None            # accepted | review | unmatched | None
+    openalex_id: str | None = None     # primary OpenAlex author id when the link is accepted
+
+    @property
+    def person_key(self) -> str:
+        """Same person listed by several departments shares one OpenAlex author id."""
+        return self.openalex_id or self.id
 
 
 def department_text(p: Professor) -> str | None:
@@ -102,7 +108,7 @@ def assemble_profile(dept_vec: np.ndarray | None, topics_vec: np.ndarray | None,
 # --- loading from the DB -------------------------------------------------------------------
 
 def load_professors(conn, dept_ids: list[str] | None = None) -> list[Professor]:
-    q = ("SELECT f.*, d.name AS department_name, l.status AS link_status, l.author_topics "
+    q = ("SELECT f.*, d.name AS department_name, l.status AS link_status, l.author_topics, l.openalex_ids "
          "FROM faculty f JOIN departments d ON d.id = f.department_id "
          "LEFT JOIN openalex_links l ON l.faculty_id = f.id")
     args: list = []
@@ -127,5 +133,6 @@ def load_professors(conn, dept_ids: list[str] | None = None) -> list[Professor]:
             topics=json.loads(r["author_topics"] or "[]") if accepted else [],
             papers=papers if accepted else [],
             link_status=r["link_status"],
+            openalex_id=(json.loads(r["openalex_ids"] or "[]") or [None])[0] if accepted else None,
         ))
     return profs
