@@ -1,0 +1,60 @@
+# Department registry for UofT Research Match.
+# To add a department: add an entry here and register a parser under `parser`.
+# Investigated 2026-11-16 (Step 0).
+
+defaults:
+  user_agent: "UofTResearchMatch/0.1 (student research-matching prototype)"
+  min_request_interval_s: 1.0
+  cache_dir: data/raw_html
+
+openalex:
+  institution_ror: 03dbr7087        # University of Toronto -> resolved to an OpenAlex institution id at runtime
+  works_since_years: 6
+  min_request_interval_s: 0.15      # OpenAlex allows 10 req/s keyless; we stay well under
+  cache_dir: data/openalex_cache
+  overrides_file: match_overrides.csv
+  review_file: review_matches.csv
+
+departments:
+  - id: cs
+    name: Department of Computer Science
+    campus: St. George
+    directory_url: https://web.cs.toronto.edu/people/faculty-directory
+    page_type: static_html_single_page   # Squarespace; all faculty in <table class="blueTable">, grouped by <h2>
+    parser: cs_squarespace
+    access: ok                            # robots.txt (User-agent: *) allows /people/*
+    # OpenAlex "field" names used for the topic-overlap part of entity linking
+    openalex_fields: [Computer Science]
+    openalex_related_fields: [Mathematics, Engineering, Decision Sciences, Psychology, Neuroscience,
+                              Medicine, Health Professions, Biochemistry, Genetics and Molecular Biology,
+                              Physics and Astronomy, Social Sciences, Economics, Econometrics and Finance]
+    # section heading -> appointment_type stored on each record (filterable in search)
+    include_sections:
+      Research Stream Faculty: research_stream
+      Teaching Stream Faculty: teaching_stream
+      Professors Emeriti: emeritus        # also sets is_emeritus=true
+      Cross-Appointed Faculty: cross_appointed
+      Status-Only Faculty: status_only
+      Adjunct Faculty: adjunct
+
+  - id: math
+    name: Department of Mathematics
+    campus: St. George
+    directory_url: https://www.mathematics.utoronto.ca/people/directories/all-faculty
+    page_type: drupal_paginated_with_profiles   # Arts & Science Drupal template (unverified: page is behind a bot check)
+    parser: artsci_drupal
+    access: blocked_bot_challenge         # JS "Verifying you are human" interstitial; robots.txt returns 403
+    openalex_fields: [Mathematics]
+    openalex_related_fields: [Physics and Astronomy, Computer Science, Decision Sciences,
+                              Economics, Econometrics and Finance, Engineering]
+
+  - id: stats
+    name: Department of Statistical Sciences
+    campus: St. George
+    directory_url: https://www.statistics.utoronto.ca/people/directories/all-faculty
+    page_type: drupal_paginated_with_profiles   # ?page=N pagination plus /all-faculty/<slug> profile pages (per search index)
+    parser: artsci_drupal
+    access: blocked_bot_challenge         # same interstitial as Math
+    openalex_fields: [Mathematics, Decision Sciences]
+    openalex_related_fields: [Computer Science, Medicine, Health Professions, Economics, Econometrics and Finance,
+                              Social Sciences, Biochemistry, Genetics and Molecular Biology, Environmental Science]
