@@ -6,7 +6,7 @@ export const API_URL =
 // Server-only (not NEXT_PUBLIC_, so never in browser bundles): proves to the deployed API that the call
 // comes from this website.
 export function serverApiHeaders(): Record<string, string> {
-  const secret = process.env.PROXY_SECRET;
+  const secret = process.env.PROXY_SECRET?.trim(); // tolerate stray spaces/newlines from pasting
   return secret ? { "x-proxy-secret": secret } : {};
 }
 

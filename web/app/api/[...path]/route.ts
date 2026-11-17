@@ -1,6 +1,7 @@
 // Forwards the browser's /api/* calls to the Python API, so visitors only ever talk to this website.
 // A route handler (not a next.config rewrite) is used because rewrites drop the visitor's IP, which the
 // API needs for its per-visitor rate limits.
+import { createHash } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { serverApiHeaders } from "@/lib/api";
 
@@ -33,10 +34,13 @@ async function proxy(req: NextRequest, { params }: { params: Promise<{ path: str
       cache: "no-store",
       signal: AbortSignal.timeout(110_000),
     });
-    return new Response(res.body, {
-      status: res.status,
-      headers: { "content-type": res.headers.get("content-type") ?? "application/json" },
-    });
+    const out = new Headers({ "content-type": res.headers.get("content-type") ?? "application/json" });
+    if (res.status === 403) {
+      // Misconfiguration aid: compare with /healthz on the API (sha256 prefix only, never the secret).
+      const s = process.env.PROXY_SECRET?.trim();
+      out.set("x-site-secret-fingerprint", s ? createHash("sha256").update(s).digest("hex").slice(0, 8) : "none");
+    }
+    return new Response(res.body, { status: res.status, headers: out });
   } catch {
     return Response.json({ detail: "API unavailable" }, { status: 502 });
   }

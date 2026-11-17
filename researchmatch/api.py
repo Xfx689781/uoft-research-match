@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import hmac
 import json
 import os
@@ -124,12 +125,15 @@ def create_app(db_path: Path, embedder, ranking: dict, explainer_factory=None,
     explain_limit = RateLimiter(int(os.getenv("EXPLAIN_PER_MINUTE", "6")))
     # Deployed: the API is only meant to be called by the website's server, which proves it with this shared
     # secret and passes the visitor's IP in x-visitor-ip (the API itself only ever sees the website's IP).
-    proxy_secret = os.getenv("PROXY_SECRET", "")
+    proxy_secret = os.getenv("PROXY_SECRET", "").strip()       # tolerate stray spaces/newlines from pasting
 
     def visitor(request: Request) -> str:
         if proxy_secret:
-            if not hmac.compare_digest(request.headers.get("x-proxy-secret", ""), proxy_secret):
-                raise HTTPException(403, "this API is only available through the website")
+            got = request.headers.get("x-proxy-secret", "").strip()
+            if not hmac.compare_digest(got, proxy_secret):
+                # say which case it is (never the secret itself) so a misconfigured deploy is easy to fix
+                raise HTTPException(403, "this API is only available through the website (" +
+                                    ("no secret sent" if not got else "secret does not match") + ")")
             return request.headers.get("x-visitor-ip") or "unknown"
         return client_ip(request)
 
@@ -139,7 +143,10 @@ def create_app(db_path: Path, embedder, ranking: dict, explainer_factory=None,
 
     @app.get("/healthz")
     def healthz():
-        return {"ok": True}
+        # first 8 hex chars of sha256(secret): lets the operator check both sides hold the same secret
+        # without revealing it
+        fp = hashlib.sha256(proxy_secret.encode()).hexdigest()[:8] if proxy_secret else None
+        return {"ok": True, "proxy_secret_fingerprint": fp}
 
     @app.get("/")
     def root():
